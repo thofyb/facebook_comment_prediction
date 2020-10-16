@@ -1,16 +1,15 @@
 import pandas as pd
 import numpy as np
 from math import sqrt
-import random
 
 
 def crossValidate():
     featureNames = getFeatureNames()
     linFeatureNames = getLinFeatureNames()
 
-    tests = ["Dataset/Features_Variant_" + str(i) + ".csv" for i in range(1, 6)]
+    # tests = ["Dataset/Features_Variant_" + str(i) + ".csv" for i in range(1, 6)]
 
-    # tests = ["Dataset/Test_Case_" + str(i) + ".csv" for i in range(1, 6)]
+    tests = ["Dataset/Test_Case_" + str(i) + ".csv" for i in range(1, 6)]
 
     sets = [pd.read_csv(file, names=featureNames + ["Result"]) for file in tests]
     # tmp = sets[1].to_numpy()
@@ -18,14 +17,12 @@ def crossValidate():
     # print(tmp[0])
 
     for variant in sets:
-        for a in featureNames:
-            value = variant[a].max() - variant[a].min()
+        for feature in featureNames:
+            value = variant[feature].max() - variant[feature].min()
             if value != 0:
-                variant[a] = (variant[a] - variant[a].min()) / value
+                variant[feature] = (variant[feature] - variant[feature].min()) / value
         for lfn in linFeatureNames:
             del variant[lfn]
-
-    # print("featureNames:" + str(len(featureNames)))
 
     featureCount = len(featureNames) - len(linFeatureNames)
 
@@ -42,7 +39,7 @@ def crossValidate():
         ])
 
         weights, r2, rmse, r2_t, rmse_t = gradientDescent(trainSet, testSet)
-        resultTable.insert(i, "T" + str(i + 1), np.concatenate((np.array([r2_t, rmse_t, r2, rmse]), weights[1:])))
+        resultTable.insert(i, "T" + str(i + 1), np.concatenate((np.array([r2, rmse, r2_t, rmse_t]), weights[1:])))
         # print("---------")
 
     e = resultTable.mean(axis=1)
@@ -56,7 +53,7 @@ def crossValidate():
 
 
 def gradientDescent(trainSet, testSet):
-    maxIterations = 1000000
+    maxIterations = 100
 
     instances = trainSet.to_numpy()
     featureCount = len(trainSet.columns) - 1
@@ -65,43 +62,43 @@ def gradientDescent(trainSet, testSet):
     instances = np.insert(instances, 0, 1, axis=1)
     featureCount += 1
 
-    w0 = np.full(featureCount, 1)
+    w0 = np.full(featureCount, 1 / featureCount)
     wk = wk_prev = w0
-    k = 1.
+    k = 1
     flag = True
 
     while k < maxIterations:
-        print(k)
+        # print(k)
         lambda_k = 1 / k
-        instRand = instances[random.randint(0, len(instances) - 1)]
-        inst = np.array([instRand])
+        # instRand = instances[random.randint(0, len(instances) - 1)]
+        # inst = np.array([instRand])
         gradient = np.array([
-            partialDerivativeMSE(j, inst, wk_prev, results)
+            partialDerivativeMSE(j, instances, wk_prev, results)
             for j in range(0, featureCount)])
 
         wk = wk_prev - lambda_k * gradient
 
-        check = sqrt(np.linalg.norm(wk - wk_prev))
-        if check < 1:
-            flag = False
+        # check = sqrt(np.linalg.norm(wk - wk_prev))
+        # if check < 1:
+        #     flag = False
         # print(check)
 
         wk_prev = wk
         k += 1
 
-    r2 = getR2(instances, wk, results)
-    rmse = getRMSE(instances, wk, results)
+    r2_train = getR2(instances, wk, results)
+    rmse_train = getRMSE(instances, wk, results)
 
     instances_t = testSet.to_numpy()
     featureCount_t = len(testSet.columns) - 1
-    results_t = instances[:, featureCount_t]
+    results_t = instances_t[:, featureCount_t]
     instances_t = np.delete(instances_t, featureCount_t, axis=1)
     instances_t = np.insert(instances_t, 0, 1, axis=1)
 
     r2_t = getR2(instances_t, wk, results_t)
     rmse_t = getRMSE(instances_t, wk, results_t)
 
-    return wk, r2_t, rmse_t, r2, rmse
+    return wk, r2_t, rmse_t, r2_train, rmse_train
 
 
 def partialDerivativeMSE(index, instances, weights, results, useL2Rglrz=False):
@@ -125,9 +122,8 @@ def getR2(instances, weights, results):
     for i in range(instanceCount):
         p = np.dot(instances[i], weights)
         y = results[i]
-        a += pow(y - p, 2)
-        # a += (y - p)**2
-        b += pow(y - y_avg, 2)
+        a += (y - p) ** 2
+        b += (y - y_avg) ** 2
 
     return 1 - a / b
 
