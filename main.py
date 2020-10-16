@@ -7,9 +7,9 @@ def crossValidate():
     featureNames = getFeatureNames()
     linFeatureNames = getLinFeatureNames()
 
-    tests = ["Dataset/Test_Case_" + str(i) + ".csv" for i in range(1, 6)]
+    dataset = pd.read_csv("dataset.csv", names=featureNames + ["Result"])
 
-    sets = [pd.read_csv(file, names=featureNames + ["Result"]) for file in tests]
+    sets = np.array_split(dataset, 5)
 
     for variant in sets:
         for feature in featureNames:
@@ -24,10 +24,10 @@ def crossValidate():
         index=["R^2", "RMSE", "R^2-train", "RMSE-train"] + [f for f in featureNames if f not in linFeatureNames]
     )
 
-    for i in range(len(tests)):
+    for i in range(len(sets)):
         testSet = sets[i]
         trainSet = pd.concat([
-            sets[j] for j in range(len(tests)) if j != i
+            sets[j] for j in range(len(sets)) if j != i
         ])
 
         weights, r2, rmse, r2_t, rmse_t = gradientDescent(trainSet, testSet)
@@ -53,7 +53,7 @@ def gradientDescent(trainSet, testSet):
     instances = np.insert(instances, 0, 1, axis=1)
     featureCount += 1
 
-    w0 = np.full(featureCount, 1 / featureCount)
+    w0 = np.full(featureCount, 1)
     wk = wk_prev = w0
     k = 1
 
