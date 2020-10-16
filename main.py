@@ -7,14 +7,9 @@ def crossValidate():
     featureNames = getFeatureNames()
     linFeatureNames = getLinFeatureNames()
 
-    # tests = ["Dataset/Features_Variant_" + str(i) + ".csv" for i in range(1, 6)]
-
     tests = ["Dataset/Test_Case_" + str(i) + ".csv" for i in range(1, 6)]
 
     sets = [pd.read_csv(file, names=featureNames + ["Result"]) for file in tests]
-    # tmp = sets[1].to_numpy()
-    # print("set2: " + str(len(tmp[0])))
-    # print(tmp[0])
 
     for variant in sets:
         for feature in featureNames:
@@ -24,13 +19,10 @@ def crossValidate():
         for lfn in linFeatureNames:
             del variant[lfn]
 
-    featureCount = len(featureNames) - len(linFeatureNames)
-
     resultTable = pd.DataFrame(
         columns=[],
         index=["R^2", "RMSE", "R^2-train", "RMSE-train"] + [f for f in featureNames if f not in linFeatureNames]
     )
-    # print(len(["R^2", "RMSE", "R^2-TEST", "RMSE-TEST"] + [f for f in featureNames]))
 
     for i in range(len(tests)):
         testSet = sets[i]
@@ -40,7 +32,6 @@ def crossValidate():
 
         weights, r2, rmse, r2_t, rmse_t = gradientDescent(trainSet, testSet)
         resultTable.insert(i, "T" + str(i + 1), np.concatenate((np.array([r2, rmse, r2_t, rmse_t]), weights[1:])))
-        # print("---------")
 
     e = resultTable.mean(axis=1)
     std = resultTable.std(axis=1)
@@ -65,23 +56,14 @@ def gradientDescent(trainSet, testSet):
     w0 = np.full(featureCount, 1 / featureCount)
     wk = wk_prev = w0
     k = 1
-    flag = True
 
     while k < maxIterations:
-        # print(k)
         lambda_k = 1 / k
-        # instRand = instances[random.randint(0, len(instances) - 1)]
-        # inst = np.array([instRand])
         gradient = np.array([
             partialDerivativeMSE(j, instances, wk_prev, results)
             for j in range(0, featureCount)])
 
         wk = wk_prev - lambda_k * gradient
-
-        # check = sqrt(np.linalg.norm(wk - wk_prev))
-        # if check < 1:
-        #     flag = False
-        # print(check)
 
         wk_prev = wk
         k += 1
@@ -101,7 +83,7 @@ def gradientDescent(trainSet, testSet):
     return wk, r2_t, rmse_t, r2_train, rmse_train
 
 
-def partialDerivativeMSE(index, instances, weights, results, useL2Rglrz=False):
+def partialDerivativeMSE(index, instances, weights, results):
     instanceCount, featureCount = instances.shape
     s = 0
 
